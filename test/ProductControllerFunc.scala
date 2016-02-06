@@ -1,43 +1,96 @@
-import com.shop.db.model.ProductEntity
-import com.shop.db.persistence.mongo.MongoProductRepository
-import common.{FutureHelper, TestProduct}
-import org.specs2.mutable._
-import org.specs2.runner._
-import org.junit.runner._
-import play.api.libs.json.Json
-import play.api.mvc
-
-import play.api.test._
+import com.shop.common.configuration.Configuration
+import common.{TestProduct, DatabaseHelper, FutureHelper}
+import org.scalatest.BeforeAndAfterEach
+import org.scalatestplus.play._
+import play.api.libs.json.{JsObject, JsString, Json}
+import play.api.libs.ws.WS
 import play.api.test.Helpers._
+import scala.concurrent.ExecutionContext.Implicits.global
 
-import scala.concurrent.Future
+class ProductControllerFunc extends PlaySpec with OneServerPerSuite with DatabaseHelper with FutureHelper with BeforeAndAfterEach{
 
-@RunWith(classOf[JUnitRunner])
-class ProductControllerFunc extends Specification with FutureHelper{
+  override lazy val port = 9000
 
-  val productRepository = new MongoProductRepository
+  override def beforeEach() = {
+    productRepository.collection.drop()
+    super.beforeEach()
+  }
 
-  "Product Controller" should {
+  "Get product" should {
 
-    "create a product when requested" in new WithServer{
+    "should return 200 when the product exists" in {
+
       //GIVEN
-      val product = TestProduct("1","name")
-      val expectedProduct = ProductEntity("1","name")
+      createProduct().waitUntilDone
 
       //WHEN
-      val result: Option[Future[mvc.Result]] = route(FakeRequest(PUT, "/product").withJsonBody(Json.toJson(product)))
+      val response = WS.url(Configuration.serviceURL+s"/product/1").get().whenValue
 
       //THEN
-      status(result.get) === CREATED
-      whenValue(productRepository.findAll()).head === expectedProduct
+      response.status mustBe (OK)
+      Json.parse(response.body) mustBe JsObject(
+        Seq("_id" -> JsString("1"),
+          "description" -> JsString("description 1"))
+      )
     }
 
-    "render the index page" in new WithApplication{
-      val home = route(FakeRequest(GET, "/")).get
+    "should return 404 when the product doesn't exist" in {
 
-      status(home) must equalTo(OK)
-      contentType(home) must beSome.which(_ == "text/html")
-      contentAsString(home) must contain ("Your new com.shop.application is ready.")
+      //WHEN
+      val response = WS.url(Configuration.serviceURL+s"/product/1").get().whenValue
+
+      //THEN
+      response.status mustBe (NOT_FOUND)
+    }
+  }
+
+  "Insert product" should {
+
+    "should return 201 when the product is stored" in {
+
+      //WHEN
+      val response = WS.url(Configuration.serviceURL+s"/product").post(Json.toJson(TestProduct(_id = "1", description = "description 1"))).whenValue
+
+      //THEN
+      response.status mustBe (CREATED)
+    }
+
+    "should return 400 when the body is empty" in {
+
+      //WHEN
+      val response = WS.url(Configuration.serviceURL+s"/product").post("").whenValue
+
+      //THEN
+      response.status mustBe (BAD_REQUEST)
+    }
+
+    "should return 400 when the body is malformed" in {
+
+      //WHEN
+      val response = WS.url(Configuration.serviceURL+s"/product").post("""{"key":"value"}}""").whenValue
+
+      //THEN
+      response.status mustBe (BAD_REQUEST)
+    }
+
+    "should return 400 when all the mandatory fields are not provided" in {
+
+      //WHEN
+      val response = WS.url(Configuration.serviceURL+s"/product").post("""{"_id":"1"}""").whenValue
+
+      //THEN
+      response.status mustBe (BAD_REQUEST)
+    }
+
+    "should return 400 when the product already exists" in {
+      //GIVEN
+      createProduct().waitUntilDone
+
+      //WHEN
+      val response = WS.url(Configuration.serviceURL+s"/product").post(Json.toJson(TestProduct(_id = "1", description = "description 1"))).whenValue
+
+      //THEN
+      response.status mustBe (BAD_REQUEST)
     }
   }
 }
