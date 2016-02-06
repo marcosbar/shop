@@ -1,0 +1,7 @@
+# Routes
+# This file defines all com.shop.application routes (Higher priority routes first)
+# ~~~~
+
+# Home page
+GET     /product/:id                          com.shop.controllers.ProductController.findProduct(id:String)
+POST    /product                              com.shop.controllers.ProductController.saveProduct()
