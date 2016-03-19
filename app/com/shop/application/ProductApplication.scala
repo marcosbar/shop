@@ -13,8 +13,9 @@ import scala.concurrent.Future
  * Created by marcos on 29/11/15.
  */
 class ProductApplication @Inject()(mongoProductRepository: MongoProductRepository){
+
   def saveProduct(product: ProductEntity): Future[Unit] = {
-    //if a race condition happens the second insert will get a internal error
+    //if a race condition happens, the second insert will get a internal error
     mongoProductRepository.findById(product._id).map{
       case Some(_) => throw BadRequestException("Duplicate product")
       case None => mongoProductRepository.save(product)

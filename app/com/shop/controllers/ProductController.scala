@@ -12,7 +12,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 /**
  * Created by marcos on 13/12/15.
  */
-class ProductController @Inject()(productApplication: ProductApplication) extends WithJsonBody {
+class ProductController @Inject()(productApplication: ProductApplication) extends WithJsonBody{
+
   def findProduct(id: String) = Action.async { request =>
     productApplication.findProductById(id).map{
       case Some(product:ProductEntity) => Ok(Json.toJson(product))

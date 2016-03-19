@@ -27,7 +27,7 @@ class ProductControllerFunc extends PlaySpec with OneServerPerSuite with Databas
       val response = WS.url(Configuration.serviceURL+s"/product/1").get().whenValue
 
       //THEN
-      response.status mustBe (OK)
+      response.status mustBe OK
       Json.parse(response.body) mustBe JsObject(
         Seq("_id" -> JsString("1"),
           "description" -> JsString("description 1"))
@@ -40,7 +40,7 @@ class ProductControllerFunc extends PlaySpec with OneServerPerSuite with Databas
       val response = WS.url(Configuration.serviceURL+s"/product/1").get().whenValue
 
       //THEN
-      response.status mustBe (NOT_FOUND)
+      response.status mustBe NOT_FOUND
     }
   }
 
@@ -52,7 +52,7 @@ class ProductControllerFunc extends PlaySpec with OneServerPerSuite with Databas
       val response = WS.url(Configuration.serviceURL+s"/product").post(Json.toJson(TestProduct(_id = "1", description = "description 1"))).whenValue
 
       //THEN
-      response.status mustBe (CREATED)
+      response.status mustBe CREATED
     }
 
     "should return 400 when the body is empty" in {
@@ -61,7 +61,7 @@ class ProductControllerFunc extends PlaySpec with OneServerPerSuite with Databas
       val response = WS.url(Configuration.serviceURL+s"/product").post("").whenValue
 
       //THEN
-      response.status mustBe (BAD_REQUEST)
+      response.status mustBe BAD_REQUEST
     }
 
     "should return 400 when the body is malformed" in {
@@ -70,7 +70,7 @@ class ProductControllerFunc extends PlaySpec with OneServerPerSuite with Databas
       val response = WS.url(Configuration.serviceURL+s"/product").post("""{"key":"value"}}""").whenValue
 
       //THEN
-      response.status mustBe (BAD_REQUEST)
+      response.status mustBe BAD_REQUEST
     }
 
     "should return 400 when all the mandatory fields are not provided" in {
@@ -79,10 +79,10 @@ class ProductControllerFunc extends PlaySpec with OneServerPerSuite with Databas
       val response = WS.url(Configuration.serviceURL+s"/product").post("""{"_id":"1"}""").whenValue
 
       //THEN
-      response.status mustBe (BAD_REQUEST)
+      response.status mustBe BAD_REQUEST
     }
 
-    "should return 400 when the product already exists" in {
+    "should return 500 when the product already exists" in {
       //GIVEN
       createProduct().waitUntilDone
 
@@ -90,7 +90,9 @@ class ProductControllerFunc extends PlaySpec with OneServerPerSuite with Databas
       val response = WS.url(Configuration.serviceURL+s"/product").post(Json.toJson(TestProduct(_id = "1", description = "description 1"))).whenValue
 
       //THEN
-      response.status mustBe (BAD_REQUEST)
+      response.status mustBe INTERNAL_SERVER_ERROR
+      response.header(CONTENT_TYPE) mustBe Some("application/json; charset=utf-8")
+      response.body mustBe """{"message":"Duplicate product"}"""
     }
   }
 }
